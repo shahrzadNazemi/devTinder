@@ -1,7 +1,10 @@
 const express = require('express')
 const { adminAuth, userAuth } = require('./middleWares/auth.middleware')
 const { dbConnection } = require('./configs/database')
+const { signUpValidation } = require('./utils/validation')
 const { User } = require('./models/user')
+const bcrypt = require('bcrypt');
+
 const app = express()
 app.use(express.json())
 app.use('/admin', adminAuth)
@@ -14,17 +17,53 @@ app.delete("/admin/deleteData", (req, res) => {
     res.send("admin data deleted")
 })
 
-app.get('/user/getData', userAuth, (req, res) => {
-    res.send("user data sent")
+app.get('/user/getData', userAuth, async (req, res) => {
+    try {
+        let users = await User.find({})
+        res.send(users)
+    } catch (err) {
+        res.status(500).send("error" + err.message)
+    }
+
 })
 app.post("/user/signup", async (req, res) => {
-    let userObj = req.body
+    let { firstName, lastName, password, emailId } = req.body
     try {
-        let user = new User(userObj)
+        signUpValidation(req)
+        let hashPassword = await bcrypt.hash(password, 10)
+        let user = new User({ firstName, lastName, password: hashPassword, emailId })
         await user.save()
         res.send("user is signedUp")
     } catch (err) {
-        res.status(500).send("error")
+        res.status(500).send("error" + err.message)
+    }
+
+})
+app.post("/user/login", async (req, res) => {
+    let { password, emailId } = req.body
+    try {
+        let user = await User.findOne({ emailId: emailId })
+        if (!user) {
+            throw new Error("invalid")
+        }
+        let isValidPassword = await bcrypt.compare(password, user.password)
+        if (!isValidPassword) {
+            throw new Error("invalid")
+
+        }
+        res.send("user is loggedIn")
+    } catch (err) {
+        res.status(500).send("error" + err.message)
+    }
+
+})
+app.patch("/user/:id", async (req, res) => {
+    let userId = req.params.id
+    try {
+        await User.findOneAndUpdate({ _id: userId }, req.body, { runValidators: true })
+        res.send("user is updated")
+    } catch (err) {
+        res.status(500).send("error" + err.message)
     }
 
 })

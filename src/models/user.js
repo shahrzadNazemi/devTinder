@@ -1,22 +1,59 @@
 const mongoose = require('mongoose')
-
+const validate = require('validator')
 let userSchema = new mongoose.Schema({
     firstName: {
-        type: String
+        type: String,
+        trim: true,
+        lowercase: true
+
     },
     lastName: {
-        type: String
+        type: String,
+        trim: true,
+        lowercase: true
+
+
     },
     gender: {
-        type: String
+        type: String,
+        required: function () {
+            return this.age > 18;
+        },
+        validate: (value) => {
+            if (!['male', 'female'].includes(value)) {
+                throw new Error('gender is not valid')
+            }
+
+        }
     },
+    photoUrl: {
+        type: String,
+        // validate: (value) => {
+        //     if (!validate.isURL(value)) {
+        //         throw new Error('photo is not valid url')
+        //     }
+        // },
+        default: ''
+    },
+
+
     emailId: {
-        type: String
+        type: String,
+        unique: true,
+        trim: true,
+        lowercase: true,
+        immutable: true
+
+    },
+    password: {
+        type: String,
+
     },
     age: {
-        type: Number
+        type: Number,
+        min: 18
     }
-})
+}, { timestamps: true })
 
 const User = mongoose.model("User", userSchema)
 module.exports = {
