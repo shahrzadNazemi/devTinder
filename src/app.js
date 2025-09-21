@@ -2,11 +2,13 @@ const express = require('express')
 const { adminAuth, userAuth } = require('./middleWares/auth.middleware')
 const { dbConnection } = require('./configs/database')
 const { signUpValidation } = require('./utils/validation')
+const cookieParser = require('cookie-parser')
 const { User } = require('./models/user')
 const bcrypt = require('bcrypt');
-
+const jwt = require('jsonwebtoken')
 const app = express()
 app.use(express.json())
+app.use(cookieParser())
 app.use('/admin', adminAuth)
 
 app.get('/admin/getAllData', (req, res) => {
@@ -19,8 +21,9 @@ app.delete("/admin/deleteData", (req, res) => {
 
 app.get('/user/getData', userAuth, async (req, res) => {
     try {
-        let users = await User.find({})
-        res.send(users)
+
+        let user = req.user
+        res.send(user)
     } catch (err) {
         res.status(500).send("error" + err.message)
     }
@@ -40,17 +43,20 @@ app.post("/user/signup", async (req, res) => {
 
 })
 app.post("/user/login", async (req, res) => {
+
     let { password, emailId } = req.body
     try {
         let user = await User.findOne({ emailId: emailId })
         if (!user) {
             throw new Error("invalid")
         }
-        let isValidPassword = await bcrypt.compare(password, user.password)
+        let isValidPassword = user.comparePass(password)
         if (!isValidPassword) {
             throw new Error("invalid")
 
         }
+        let token = await user.setJWT()
+        res.cookie('token', token)
         res.send("user is loggedIn")
     } catch (err) {
         res.status(500).send("error" + err.message)
